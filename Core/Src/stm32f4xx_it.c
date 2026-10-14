@@ -57,10 +57,11 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern DMA_HandleTypeDef hdma_usart1_rx;
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
-
+extern UART_HandleTypeDef huart1;   /* USART1_IRQHandler 用 (IDLE + DMA 接收) */
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -175,7 +176,34 @@ void TIM6_DAC_IRQHandler(void)
   /* USER CODE END TIM6_DAC_IRQn 1 */
 }
 
+/**
+  * @brief This function handles DMA2 stream2 global interrupt.
+  */
+void DMA2_Stream2_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream2_IRQn 0 */
+
+  /* USER CODE END DMA2_Stream2_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart1_rx);
+  /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream2_IRQn 1 */
+}
+
 /* USER CODE BEGIN 1 */
+/**
+  * @brief  USART1 全局中断服务程序 (IDLE 空闲线检测 + 溢出/帧/噪声错误)
+  * @note   IDLE+DMA 接收的核心入口: HAL 在这里判断"总线安静了且已收到数据",
+  *         然后把 DMA 已写入的绝对位置交给 HAL_UARTEx_RxEventCallback()
+  *         (实现在 uart_cmd_task.c)。本函数只做转发。
+  *         NVIC 使能与优先级在 HAL_UART_MspInit() 里配置 (见 usart.c),
+  *         与 DMA2_Stream2_IRQHandler 同为优先级 5。
+  */
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
+}
+
 /**
   * @brief  BTN1 (PE3) 外部中断服务程序
   * @note   清 EXTI 挂起位后交给 BSP GPIO 驱动分发到注册的回调;

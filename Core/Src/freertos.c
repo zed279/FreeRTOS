@@ -30,6 +30,8 @@
 #include "print_task.h"
 #include "adc_task.h"
 #include "btn_led_task.h"
+#include "oled_task.h"
+#include "uart_cmd_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,7 +94,8 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
-  AppIpc_Init();       /* 创建任务间通信对象 (温度数据队列), 必须在任务创建之前 */
+  AppIpc_Init();       /* 创建任务间通信对象 (温度队列 + 温度最新值通道), 必须在任务创建之前 */
+  UartCmd_Init();      /* 创建命令通道对象 (接收字节流缓冲 + 发送互斥量), 同样要在任务之前 */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -102,9 +105,11 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* LedTask_Create(); */    /* 1Hz 闪灯(LED1): 与按键控制 LED1 冲突, 已停用; 恢复时取消本行注释 */
-  PrintTask_Create();        /* 串口打印: 消费温度队列 (USART1) */
+//PrintTask_Create();        /* 串口打印: 消费温度队列 (USART1) */
   AdcTask_Create();          /* ADC1 内部温度传感器采集 -> 队列 */
   BtnLedTask_Create();       /* 按键事件组控制 LED1/LED2 */
+  OledTask_Create();         /* SSD1315 OLED: 20Hz 显示 ADC 内部温度 */
+  UartCmd_TaskCreate();      /* 上位机命令: USART1 IDLE+DMA 接收 + 行解析 + 命令分发 */
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */

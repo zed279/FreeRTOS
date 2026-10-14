@@ -4,7 +4,7 @@
   * @file           : adc_task.c
   * @brief          : ADC1 内部温度传感器采集任务实现
   * @note           流程: 软件触发单次转换 -> 轮询转换完成 -> 原始值换算摄氏度
-  *                       -> 经队列送给 PrintTask 打印
+  *                       -> 最新值通道给 OLED 显示 / 多帧队列给串口打印
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -18,7 +18,7 @@
 
 /* Private define ------------------------------------------------------------*/
 #define ADC_TASK_STACK_SIZE     (128 * 4)   /* 512 字节 */
-#define ADC_SAMPLE_PERIOD_MS    1000U       /* 采样周期: 1Hz */
+#define ADC_SAMPLE_PERIOD_MS    50U         /* 采样周期: 20Hz, 对齐 OLED 刷新率 */
 #define ADC_POLL_TIMEOUT_MS     10U         /* 转换轮询超时 (实际约 23us) */
 
 /* 内部温度传感器换算参数 (STM32F407 数据手册典型值, 仅供参考精度)
@@ -82,7 +82,11 @@ static void AdcTask_Loop(void *argument)
       msg.raw    = (uint16_t)HAL_ADC_GetValue(&hadc1);
       msg.temp_c = AdcTask_RawToTempC(msg.raw);
 
-      /* 队列满时丢弃本次采样 (timeout=0), 不让生产者阻塞 */
+      /* 通道 1: 最新值通道 -> OLED 显示任务 (覆盖写, 只留最新一帧)
+       * 显示任务比采样慢时, 这里丢掉的是旧帧, 屏幕永远显示最新温度 */
+      AppIpc_PublishTemp(&msg);
+
+      /* 通道 2: 多帧队列 -> 串口任务 (队列满时丢弃本次采样, timeout=0 不阻塞) */
       (void)osMessageQueuePut(AppIpc_TempQueue(), &msg, 0U, 0U);
     }
     /* 单次转换模式, 转换结束即自动停止, 无需 HAL_ADC_Stop */

@@ -45,3 +45,8 @@ MDK-ARM/**/*.lst
 MDK-ARM/**/*.map
 MDK-ARM/**/*.axf
 MDK-ARM/**/*.htm
+
+*.lnp
+*.dep
+ExtDll.iex
+build_log.txt
